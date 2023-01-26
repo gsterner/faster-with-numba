@@ -1,25 +1,24 @@
 import numpy as np
 import time
-from numba import jit
+from numba import njit, vectorize, float64
 
-@jit(nopython=True)
+@vectorize([float64(float64, float64, float64, float64, float64, float64)])
+def prices_from_underlying(Z, S_zero, T, r, sigma, K):
+    S = S_zero * np.exp((r - 0.5 * sigma * sigma) * T + sigma * np.sqrt(T) * Z)
+    diff = S - K
+    ismax = 0 < diff
+    return np.multiply(diff, ismax)
+
+@njit
 def black_loop(N, S_zero, T, r, sigma, K):
     Z = np.random.normal(0, 1, size=(N))
-    C_total = 0
-    for z in Z:
-        S = S_zero * np.exp((r - 0.5 * sigma * sigma) * T + sigma * np.sqrt(T) * z)
-        C = np.maximum(0, S - K)
-        C_total = C_total + C
+    C = prices_from_underlying(Z, S_zero, T, r, sigma, K)
+    C_total = np.sum(C)
     return np.exp(- r * T) * C_total / N
 
-#T_start = 0
 maturity = 1
-# T_steps = 10
-# t = (T_end - T_start) / T_steps
-# T = np.arange(T_start, T_end, t)
 underlying_start = 100
 strike = 100
-#S = np.ones(T.size) * S_zero
 rate = 0.02
 volatility = 0.2
 scenarios = 100000000
